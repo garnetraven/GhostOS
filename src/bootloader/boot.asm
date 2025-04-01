@@ -30,7 +30,7 @@ ebr_drive_number:               db 0                    ; 0x00 floppy, 0x80 hdd,
                                 db 0                    ; reserved
 ebr_signature:                  db 29h
 ebr_volume_id:                  db 12h, 34h, 56h, 78h   ; serial number, value doesn't matter
-ebr_volume_label:               db '  GHOSTOS  '         ; 11 bytes, padded with spaces
+ebr_volume_label:               db '  GHOSTOS  '        ; 11 bytes, padded with spaces
 ebr_system_id:                  db 'FAT12   '           ; 8 bytes
 
 ;
@@ -94,9 +94,36 @@ main:
 ; Converts an LBA address to a CHS address
 ; Parameters:
 ;   - ax: LBA address
+; Returns
+;   - cx [bits 0-5] sector number
+;   - cx [bits 6-15] cylinder
 ;
 
 lba_to_chs:
+	
+	push ax
+	push dx
+
+	xor dx, dx				; dx = 0
+	div word [bdb_sectors_per_track]	; ax = LBA / SectorsPerTrack
+						; dx = LBA % SectorsPerTrack
+
+	inc dx					; dx = (LBA % SectorsPerTrack + 1) = sector
+	mov cx, dx				; cx = sector	
+
+	xor dx, dx 				; dx = 0
+	div word [bdb_heads]			; ax = (LBA / SectorsPerTrack) / Heads = cylinder
+						; dx = (LBA / SectorsPerTrack) % Heads = head
+	mov dh, dl				; dh = head
+	mov ch, al				; ch = cylinder (lower 8 bits)
+	shl al, 6
+	or cl, ah				; put upper 2 bits in CL
+
+	pop ax
+	mov dl, al				; restore DL
+	pop ax
+	ret
+
 
 
 msg_hello: db 'Hello, World!', ENDL, 0
